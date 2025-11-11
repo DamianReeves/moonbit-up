@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "moonbit-up"
+version = "0.1.0"
+description = "MoonBit toolchain manager for ARM64 systems with QEMU emulation support"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Damian Reeves"}
+]
+dependencies = [
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
+    "requests>=2.31.0",
+]
+
+[project.scripts]
+moonbit-up = "moonbit_up.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/moonbitlang"
+Documentation = "https://www.moonbitlang.com"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/moonbit_up"]
