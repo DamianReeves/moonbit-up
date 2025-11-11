@@ -7,6 +7,7 @@ from rich.console import Console
 from .installer import MoonBitInstaller
 from .version import VersionManager, fetch_available_versions
 from .utils import get_current_version
+from .config import show_config, set_mirror, reset_config
 
 app = typer.Typer(
     name="moonbit-up",
@@ -108,6 +109,54 @@ def history():
     """
     manager = VersionManager()
     manager.show_history()
+
+
+@app.command()
+def config(
+    show: bool = typer.Option(
+        False,
+        "--show",
+        help="Show current configuration"
+    ),
+    set_index_url: Optional[str] = typer.Option(
+        None,
+        "--index-url",
+        help="Set custom index URL for version listings"
+    ),
+    set_download_url: Optional[str] = typer.Option(
+        None,
+        "--download-url",
+        help="Set custom download base URL for binaries"
+    ),
+    reset: bool = typer.Option(
+        False,
+        "--reset",
+        help="Reset configuration to defaults"
+    ),
+):
+    """
+    Manage moonbit-up configuration.
+
+    Configure custom mirrors for the MoonBit binaries index and downloads.
+    Useful for setting up local mirrors or using alternative sources.
+    """
+    if reset:
+        if reset_config():
+            console.print("[green]Configuration reset to defaults[/green]")
+            raise typer.Exit(0)
+        else:
+            raise typer.Exit(1)
+
+    if set_index_url or set_download_url:
+        if set_mirror(index_url=set_index_url, download_url=set_download_url):
+            console.print("\n[green]Configuration updated successfully[/green]")
+            show = True  # Show config after updating
+        else:
+            raise typer.Exit(1)
+
+    if show or (not set_index_url and not set_download_url and not reset):
+        # Default action: show config
+        show_config()
 
 
 @app.callback(invoke_without_command=True)

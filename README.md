@@ -86,6 +86,22 @@ moonbit-up rollback
 
 Restores the most recent backup of your MoonBit installation.
 
+### Configure Mirrors
+
+```bash
+moonbit-up config                                    # Show current configuration
+moonbit-up config --index-url <URL>                  # Set custom index URL
+moonbit-up config --download-url <URL>               # Set custom download base URL
+moonbit-up config --reset                            # Reset to defaults
+```
+
+Configure custom mirrors for the MoonBit binaries. Useful for:
+- Setting up local/corporate mirrors
+- Using alternative download sources
+- Faster downloads from regional mirrors
+
+Configuration is stored in `~/.config/moonbit-up/config.toml`.
+
 ## How It Works
 
 1. **QEMU Emulation**: Uses QEMU user-mode to run AMD64 binaries on ARM64
@@ -108,9 +124,50 @@ Restores the most recent backup of your MoonBit installation.
 └── lib64/                        # Dynamic linker
 
 ~/.config/moonbit-up/             # Configuration
+├── config.toml                   # User configuration
 └── version_history.json          # Installation history
 
 ~/.moon.backup.YYYYMMDD_HHMMSS/   # Automatic backups
+```
+
+## Configuration
+
+moonbit-up uses TOML-based configuration stored at `~/.config/moonbit-up/config.toml`.
+
+### Example Configuration
+
+```toml
+[mirror]
+index_url = "https://raw.githubusercontent.com/chawyehsu/moonbit-binaries/gh-pages/index.json"
+download_base_url = "https://github.com/chawyehsu/moonbit-binaries/releases/download"
+
+[installation]
+backup_enabled = true
+verify_checksums = true
+```
+
+### Setting Up a Custom Mirror
+
+If you have a local mirror or want to use an alternative source:
+
+```bash
+# Set custom index URL
+moonbit-up config --index-url "https://your-mirror.com/moonbit/index.json"
+
+# Set custom download base URL
+moonbit-up config --download-url "https://your-mirror.com/moonbit/releases"
+
+# Verify configuration
+moonbit-up config
+
+# Test with a version list
+moonbit-up list
+```
+
+### Reset to Defaults
+
+```bash
+moonbit-up config --reset
 ```
 
 ## Requirements

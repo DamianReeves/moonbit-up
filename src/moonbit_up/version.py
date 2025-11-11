@@ -11,11 +11,9 @@ from rich.table import Table
 import requests
 
 from .utils import get_config_dir
+from .config import load_config
 
 console = Console()
-
-# MoonBit binaries index URL
-MOONBIT_BINARIES_INDEX_URL = "https://raw.githubusercontent.com/chawyehsu/moonbit-binaries/gh-pages/index.json"
 
 
 @dataclass
@@ -107,9 +105,13 @@ class VersionManager:
 
 
 def fetch_moonbit_binaries_index() -> Optional[Dict]:
-    """Fetch the moonbit-binaries index from GitHub."""
+    """Fetch the moonbit-binaries index from configured mirror."""
+    config = load_config()
+    index_url = config.mirror.index_url
+
     try:
-        response = requests.get(MOONBIT_BINARIES_INDEX_URL, timeout=10)
+        console.print(f"[dim]Fetching from: {index_url}[/dim]")
+        response = requests.get(index_url, timeout=10)
         response.raise_for_status()
         return response.json()
     except Exception as e:

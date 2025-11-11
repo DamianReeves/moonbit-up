@@ -20,11 +20,11 @@ from .utils import (
     get_current_version,
 )
 from .version import VersionManager, list_available_versions
+from .config import load_config
 
 console = Console()
 
 MOONBIT_BASE_URL = "https://cli.moonbitlang.com/binaries"
-MOONBIT_BINARIES_GITHUB_URL = "https://github.com/chawyehsu/moonbit-binaries/releases/download"
 
 
 class MoonBitInstaller:
@@ -44,12 +44,15 @@ class MoonBitInstaller:
         Returns:
             Tuple of (download_url, resolved_version)
         """
+        config = load_config()
+        download_base_url = config.mirror.download_base_url
+
         if version == "latest":
             # Get the latest version from moonbit-binaries
             available = list_available_versions(limit=1)
             if available:
                 ver = available[0]
-                url = f"{MOONBIT_BINARIES_GITHUB_URL}/v{ver.version}/{ver.filename}"
+                url = f"{download_base_url}/v{ver.version}/{ver.filename}"
                 return url, ver.version
             else:
                 # Fallback to official server
@@ -62,13 +65,13 @@ class MoonBitInstaller:
 
             if matching:
                 ver = matching[0]
-                url = f"{MOONBIT_BINARIES_GITHUB_URL}/v{ver.version}/{ver.filename}"
+                url = f"{download_base_url}/v{ver.version}/{ver.filename}"
                 return url, ver.version
             else:
                 console.print(f"[yellow]Version {version} not found in index, trying direct URL[/yellow]")
                 # Try to construct URL anyway
                 filename = f"moonbit-v{version}-linux-x64.tar.gz"
-                url = f"{MOONBIT_BINARIES_GITHUB_URL}/v{version}/{filename}"
+                url = f"{download_base_url}/v{version}/{filename}"
                 return url, version
 
     def get_download_url(self, version: str = "latest") -> str:
