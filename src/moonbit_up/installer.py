@@ -85,12 +85,23 @@ class MoonBitInstaller:
         console.print(f"[cyan]Downloading MoonBit toolchain ({version})...[/cyan]")
 
         try:
-            response = requests.get(url, stream=True)
-            response.raise_for_status()
-
             # Create temporary file
             temp_dir = Path(tempfile.mkdtemp())
             tar_path = temp_dir / "moonbit.tar.gz"
+
+            # Handle file:// URLs
+            if url.startswith("file://"):
+                source_path = Path(url.replace("file://", ""))
+                if not source_path.exists():
+                    console.print(f"[red]Error: Source file not found: {source_path}[/red]")
+                    return None
+                shutil.copy2(source_path, tar_path)
+                console.print("[green]File copied from local mirror[/green]")
+                return tar_path
+
+            # Handle HTTP/HTTPS URLs
+            response = requests.get(url, stream=True)
+            response.raise_for_status()
 
             # Download with progress
             total_size = int(response.headers.get('content-length', 0))

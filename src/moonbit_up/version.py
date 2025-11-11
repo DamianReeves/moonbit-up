@@ -111,9 +111,20 @@ def fetch_moonbit_binaries_index() -> Optional[Dict]:
 
     try:
         console.print(f"[dim]Fetching from: {index_url}[/dim]")
-        response = requests.get(index_url, timeout=10)
-        response.raise_for_status()
-        return response.json()
+
+        # Handle file:// URLs
+        if index_url.startswith("file://"):
+            file_path = Path(index_url.replace("file://", ""))
+            if not file_path.exists():
+                console.print(f"[yellow]Warning: Local index file not found: {file_path}[/yellow]")
+                return None
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        else:
+            # Handle HTTP/HTTPS URLs
+            response = requests.get(index_url, timeout=10)
+            response.raise_for_status()
+            return response.json()
     except Exception as e:
         console.print(f"[yellow]Warning: Could not fetch version index: {e}[/yellow]")
         return None
