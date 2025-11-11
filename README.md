@@ -170,6 +170,74 @@ moonbit-up list
 moonbit-up config --reset
 ```
 
+## Mirror Management
+
+moonbit-up can create and manage local mirrors of moonbit-binaries for offline use, faster downloads, or corporate environments.
+
+### Create a Mirror
+
+```bash
+# Mirror latest version only
+moonbit-up mirror create
+
+# Mirror all available versions (68+)
+moonbit-up mirror create --all
+
+# Mirror specific versions
+moonbit-up mirror create --version 0.1.20241223+62b9a1a85 --version 0.1.20241218+f4a066f5f
+
+# Custom mirror location
+moonbit-up mirror create --path /data/moonbit-mirror --all
+```
+
+### Sync Mirror with Upstream
+
+Keep your mirror up-to-date with new releases:
+
+```bash
+moonbit-up mirror sync
+moonbit-up mirror sync --path /data/moonbit-mirror
+```
+
+### Serve Mirror via HTTP
+
+Serve your mirror on the local network:
+
+```bash
+# Serve on default port 8000
+moonbit-up mirror serve
+
+# Custom port
+moonbit-up mirror serve --port 8080
+
+# Then configure clients to use it:
+# moonbit-up config --index-url "http://mirror-host:8000/index.json"
+# moonbit-up config --download-url "http://mirror-host:8000/releases"
+```
+
+### Mirror Information
+
+View mirror statistics:
+
+```bash
+moonbit-up mirror info
+moonbit-up mirror info --path /data/moonbit-mirror
+```
+
+### Use a Local Mirror
+
+After creating a mirror, configure moonbit-up to use it:
+
+```bash
+# For file:// URLs (local filesystem)
+moonbit-up config --index-url "file:///home/user/moonbit-mirror/index.json"
+moonbit-up config --download-url "file:///home/user/moonbit-mirror/releases"
+
+# For HTTP URLs (served mirror)
+moonbit-up config --index-url "http://localhost:8000/index.json"
+moonbit-up config --download-url "http://localhost:8000/releases"
+```
+
 ## Requirements
 
 - Python 3.8+

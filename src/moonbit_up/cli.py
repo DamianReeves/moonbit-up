@@ -1,13 +1,15 @@
 """CLI interface for moonbit-up."""
 
 import typer
-from typing import Optional
+from typing import Optional, List
+from pathlib import Path
 from rich.console import Console
 
 from .installer import MoonBitInstaller
 from .version import VersionManager, fetch_available_versions
 from .utils import get_current_version
 from .config import show_config, set_mirror, reset_config
+from .mirror import MirrorManager
 
 app = typer.Typer(
     name="moonbit-up",
@@ -157,6 +159,82 @@ def config(
     if show or (not set_index_url and not set_download_url and not reset):
         # Default action: show config
         show_config()
+
+
+@app.command()
+def mirror(
+    action: str = typer.Argument(
+        ...,
+        help="Action: create, sync, info, or serve"
+    ),
+    path: Optional[Path] = typer.Option(
+        None,
+        "--path",
+        "-p",
+        help="Path to mirror directory (default: ~/moonbit-mirror)"
+    ),
+    versions: Optional[List[str]] = typer.Option(
+        None,
+        "--version",
+        "-v",
+        help="Specific versions to mirror (can specify multiple)"
+    ),
+    all_versions: bool = typer.Option(
+        False,
+        "--all",
+        "-a",
+        help="Mirror all available versions"
+    ),
+    port: int = typer.Option(
+        8000,
+        "--port",
+        help="Port for HTTP server (serve action only)"
+    ),
+):
+    """
+    Manage a local mirror of moonbit-binaries.
+
+    Actions:
+      create  - Create or update a mirror
+      sync    - Sync mirror with upstream (get new versions)
+      info    - Show mirror information
+      serve   - Serve mirror via HTTP
+
+    Examples:
+      moonbit-up mirror create                    # Mirror latest version
+      moonbit-up mirror create --all              # Mirror all versions
+      moonbit-up mirror create -v 0.1.20241223+... # Mirror specific version
+      moonbit-up mirror sync                       # Update mirror
+      moonbit-up mirror serve --port 8080          # Serve on port 8080
+      moonbit-up mirror info                       # Show mirror stats
+    """
+    if path is None:
+        path = Path.home() / "moonbit-mirror"
+
+    manager = MirrorManager(path)
+
+    if action == "create":
+        if manager.create_mirror(versions=versions, all_versions=all_versions):
+            raise typer.Exit(0)
+        else:
+            raise typer.Exit(1)
+
+    elif action == "sync":
+        if manager.sync_mirror():
+            raise typer.Exit(0)
+        else:
+            raise typer.Exit(1)
+
+    elif action == "info":
+        manager.info()
+
+    elif action == "serve":
+        manager.serve_mirror(port=port)
+
+    else:
+        console.print(f"[red]Unknown action: {action}[/red]")
+        console.print("Valid actions: create, sync, info, serve")
+        raise typer.Exit(1)
 
 
 @app.callback(invoke_without_command=True)
