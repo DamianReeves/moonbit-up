@@ -8,9 +8,14 @@ from dataclasses import dataclass, asdict
 from rich.console import Console
 from rich.table import Table
 
+import requests
+
 from .utils import get_config_dir
 
 console = Console()
+
+# MoonBit binaries index URL
+MOONBIT_BINARIES_INDEX_URL = "https://raw.githubusercontent.com/chawyehsu/moonbit-binaries/gh-pages/index.json"
 
 
 @dataclass
@@ -19,6 +24,15 @@ class VersionInfo:
     version: str
     installed_at: str
     backup_path: Optional[str] = None
+
+
+@dataclass
+class AvailableVersion:
+    """Information about an available MoonBit version."""
+    version: str
+    filename: str
+    sha256: str
+    last_modified: Optional[str] = None
 
 
 class VersionManager:
@@ -92,29 +106,101 @@ class VersionManager:
         console.print(table)
 
 
-def list_available_versions() -> List[str]:
-    """
-    List available MoonBit versions.
+def fetch_moonbit_binaries_index() -> Optional[Dict]:
+    """Fetch the moonbit-binaries index from GitHub."""
+    try:
+        response = requests.get(MOONBIT_BINARIES_INDEX_URL, timeout=10)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        console.print(f"[yellow]Warning: Could not fetch version index: {e}[/yellow]")
+        return None
 
-    Note: The MoonBit binaries server doesn't provide a version listing API.
-    This function returns known version identifiers.
-    """
-    # Since the server only exposes 'latest', we can only track what we've installed
-    versions = ["latest"]
 
-    # Could potentially scrape or check for dated releases if the URL pattern is known
-    # For now, we'll just return latest and suggest checking the website
+def list_available_versions(limit: Optional[int] = None) -> List[AvailableVersion]:
+    """
+    List available MoonBit versions from moonbit-binaries.
+
+    Args:
+        limit: Maximum number of versions to return (None for all)
+
+    Returns:
+        List of AvailableVersion objects
+    """
+    index = fetch_moonbit_binaries_index()
+    if not index:
+        return []
+
+    linux_x64_data = index.get("linux-x64", {})
+    releases = linux_x64_data.get("releases", [])
+    last_modified = linux_x64_data.get("last_modified")
+
+    versions = [
+        AvailableVersion(
+            version=r["version"],
+            filename=r["name"],
+            sha256=r["sha256"],
+            last_modified=last_modified
+        )
+        for r in releases
+    ]
+
+    if limit:
+        versions = versions[:limit]
 
     return versions
 
 
-def fetch_available_versions() -> None:
-    """Display available versions information."""
-    console.print("[cyan]Available MoonBit Versions:[/cyan]\n")
+def fetch_available_versions(show_all: bool = False) -> None:
+    """
+    Display available versions information.
 
-    console.print("• [green]latest[/green] - Most recent stable release")
-    console.print("\n[yellow]Note:[/yellow] MoonBit currently only provides 'latest' builds.")
-    console.print("For specific version history, visit: https://www.moonbitlang.com/download")
+    Args:
+        show_all: If True, show all versions. If False, show recent versions.
+    """
+    console.print("[bold cyan]Available MoonBit Versions[/bold cyan]")
+    console.print("(from chawyehsu/moonbit-binaries)\n")
+
+    versions = list_available_versions(limit=None if show_all else 20)
+
+    if not versions:
+        console.print("[red]Could not fetch available versions[/red]")
+        console.print("Fallback: Use [green]'latest'[/green] to install the most recent version")
+        return
+
+    # Create table
+    table = Table(title=f"{'All' if show_all else 'Recent'} Linux x86-64 Releases")
+    table.add_column("#", style="dim", width=4)
+    table.add_column("Version", style="cyan")
+    table.add_column("Release Date", style="green")
+
+    for idx, ver in enumerate(versions, 1):
+        # Extract date from version string (format: 0.1.YYYYMMDD+hash)
+        version_parts = ver.version.split("+")
+        version_base = version_parts[0]
+        date_part = version_base.split(".")[-1] if "." in version_base else ""
+
+        # Try to parse date
+        try:
+            if len(date_part) == 8 and date_part.isdigit():
+                date_obj = datetime.strptime(date_part, "%Y%m%d")
+                date_str = date_obj.strftime("%Y-%m-%d")
+            else:
+                date_str = "Unknown"
+        except:
+            date_str = "Unknown"
+
+        table.add_row(str(idx), ver.version, date_str)
+
+    console.print(table)
+
+    if not show_all and len(versions) == 20:
+        console.print("\n[dim]Showing 20 most recent versions. Use --all flag to see all versions.[/dim]")
+
+    console.print(f"\n[green]Total available versions:[/green] {len(versions)}")
+    console.print("\n[cyan]Usage:[/cyan]")
+    console.print("  moonbit-up update <version>  # Install specific version")
+    console.print("  moonbit-up update latest     # Install most recent version")
 
     # Show locally installed versions
     manager = VersionManager()
@@ -123,4 +209,5 @@ def fetch_available_versions() -> None:
     if history:
         console.print("\n[cyan]Previously Installed Versions:[/cyan]")
         for v in history:
-            console.print(f"  • {v.version} (installed {v.installed_at})")
+            installed = datetime.fromisoformat(v.installed_at).strftime("%Y-%m-%d %H:%M")
+            console.print(f"  • {v.version} (installed {installed})")

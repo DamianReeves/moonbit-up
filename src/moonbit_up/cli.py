@@ -46,14 +46,21 @@ def update(
 
 
 @app.command("list")
-def list_versions():
+def list_versions(
+    all: bool = typer.Option(
+        False,
+        "--all",
+        "-a",
+        help="Show all available versions (not just recent 20)"
+    )
+):
     """
     List available MoonBit versions.
 
-    Shows available versions that can be installed, as well as
-    previously installed versions tracked locally.
+    Shows available versions that can be installed from moonbit-binaries,
+    as well as previously installed versions tracked locally.
     """
-    fetch_available_versions()
+    fetch_available_versions(show_all=all)
 
 
 @app.command()

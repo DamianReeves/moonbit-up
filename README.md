@@ -6,7 +6,8 @@ A MoonBit toolchain manager for ARM64 systems with QEMU emulation support.
 
 `moonbit-up` automates the installation and management of the MoonBit toolchain on ARM64 systems (like Apple Silicon or ARM64 WSL2) where native ARM64 builds are not available. It handles:
 
-- Downloading the AMD64 MoonBit toolchain
+- Downloading the AMD64 MoonBit toolchain (from [moonbit-binaries](https://github.com/chawyehsu/moonbit-binaries))
+- Supporting 68+ archived MoonBit releases for version pinning
 - Setting up QEMU user-mode emulation
 - Extracting AMD64 system libraries from Docker
 - Creating wrapper scripts for transparent execution
@@ -55,10 +56,11 @@ moonbit-up update v0.1.20251030
 ### List Available Versions
 
 ```bash
-moonbit-up list
+moonbit-up list         # Show recent 20 versions
+moonbit-up list --all   # Show all available versions
 ```
 
-Shows available versions and previously installed versions.
+Lists available versions from [chawyehsu/moonbit-binaries](https://github.com/chawyehsu/moonbit-binaries) and previously installed versions. Currently supports 68+ archived releases!
 
 ### Show Current Version
 

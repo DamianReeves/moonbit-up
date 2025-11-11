@@ -19,11 +19,12 @@ from .utils import (
     setup_wrappers,
     get_current_version,
 )
-from .version import VersionManager
+from .version import VersionManager, list_available_versions
 
 console = Console()
 
 MOONBIT_BASE_URL = "https://cli.moonbitlang.com/binaries"
+MOONBIT_BINARIES_GITHUB_URL = "https://github.com/chawyehsu/moonbit-binaries/releases/download"
 
 
 class MoonBitInstaller:
@@ -33,10 +34,47 @@ class MoonBitInstaller:
         self.moon_home = get_moon_home()
         self.version_manager = VersionManager()
 
+    def resolve_version(self, version: str) -> tuple[str, str]:
+        """
+        Resolve a version string to a download URL and actual version.
+
+        Args:
+            version: Version string ('latest' or specific version like '0.1.20241223+62b9a1a85')
+
+        Returns:
+            Tuple of (download_url, resolved_version)
+        """
+        if version == "latest":
+            # Get the latest version from moonbit-binaries
+            available = list_available_versions(limit=1)
+            if available:
+                ver = available[0]
+                url = f"{MOONBIT_BINARIES_GITHUB_URL}/v{ver.version}/{ver.filename}"
+                return url, ver.version
+            else:
+                # Fallback to official server
+                console.print("[yellow]Could not fetch version list, using official server[/yellow]")
+                return f"{MOONBIT_BASE_URL}/latest/moonbit-linux-x86_64.tar.gz", "latest"
+        else:
+            # Specific version requested
+            available = list_available_versions()
+            matching = [v for v in available if v.version == version]
+
+            if matching:
+                ver = matching[0]
+                url = f"{MOONBIT_BINARIES_GITHUB_URL}/v{ver.version}/{ver.filename}"
+                return url, ver.version
+            else:
+                console.print(f"[yellow]Version {version} not found in index, trying direct URL[/yellow]")
+                # Try to construct URL anyway
+                filename = f"moonbit-v{version}-linux-x64.tar.gz"
+                url = f"{MOONBIT_BINARIES_GITHUB_URL}/v{version}/{filename}"
+                return url, version
+
     def get_download_url(self, version: str = "latest") -> str:
         """Get the download URL for a specific version."""
-        # Currently only 'latest' is supported by the server
-        return f"{MOONBIT_BASE_URL}/{version}/moonbit-linux-x86_64.tar.gz"
+        url, _ = self.resolve_version(version)
+        return url
 
     def download_toolchain(self, version: str = "latest") -> Optional[Path]:
         """Download the MoonBit toolchain."""
@@ -166,10 +204,18 @@ class MoonBitInstaller:
         """Install or update MoonBit toolchain."""
         console.print("[bold cyan]MoonBit Toolchain Installer[/bold cyan]\n")
 
+        # Resolve version
+        console.print(f"Resolving version: {version}")
+        _, resolved_version = self.resolve_version(version)
+        console.print(f"Target version: {resolved_version}\n")
+
         # Check current version
         current = get_current_version()
         if current:
             console.print(f"Current version: {current}")
+            if current == resolved_version:
+                console.print("[yellow]Already at target version[/yellow]")
+                return True
 
         # Ensure AMD64 libraries are set up
         if not ensure_amd64_libs():
