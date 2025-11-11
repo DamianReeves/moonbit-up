@@ -22,9 +22,43 @@ dependencies = [
 [project.scripts]
 moonbit-up = "moonbit_up.cli:app"
 
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-mock>=3.10.0",
+    "behave>=1.2.6",
+    "responses>=0.23.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/moonbitlang"
 Documentation = "https://www.moonbitlang.com"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/moonbit_up"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--cov=moonbit_up",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["src/moonbit_up"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

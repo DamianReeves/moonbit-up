@@ -254,7 +254,29 @@ cd ~/tools/moonbit-up
 uv tool install -e .  # Reinstall in development mode
 ```
 
-To uninstall:
+### Testing
+
+moonbit-up has comprehensive unit and integration tests:
+
+```bash
+# Create virtual environment and install test dependencies
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[test]"
+
+# Run unit tests
+pytest tests/unit/ -v
+
+# Run with coverage
+pytest tests/unit/ --cov=moonbit_up --cov-report=html
+
+# Run integration tests (Gherkin/Behave)
+behave features/
+```
+
+See [TESTING.md](TESTING.md) for detailed testing documentation.
+
+### Uninstall
 
 ```bash
 uv tool uninstall moonbit-up
