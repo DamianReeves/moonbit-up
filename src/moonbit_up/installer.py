@@ -176,6 +176,19 @@ class MoonBitInstaller:
                             shutil.rmtree(dst)
                         shutil.copytree(src, dst)
 
+                # Ensure executables under bin/ have execute permissions
+                bin_dir = dest / "bin"
+                if bin_dir.exists():
+                    for p in bin_dir.iterdir():
+                        if p.is_file():
+                            try:
+                                st = p.stat()
+                                # If not executable by user, add 0o755
+                                if not (st.st_mode & 0o100):
+                                    p.chmod(0o755)
+                            except Exception:
+                                pass
+
             console.print("[green]Extraction complete[/green]")
             return True
 
