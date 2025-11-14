@@ -3,7 +3,7 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Tuple
 from dataclasses import dataclass, asdict
 from rich.console import Console
 from rich.table import Table
@@ -128,6 +128,48 @@ def fetch_moonbit_binaries_index() -> Optional[Dict]:
     except Exception as e:
         console.print(f"[yellow]Warning: Could not fetch version index: {e}[/yellow]")
         return None
+
+
+def fetch_moonup_dist_index() -> Optional[Dict]:
+    """Fetch the moonup distribution index for channels (v3 preferred, v2 fallback)."""
+    config = load_config()
+    base = config.nightly.dist_server.rstrip("/")
+
+    # Try v3 first
+    urls = [f"{base}/", base]  # allow with or without trailing slash
+    # If user passed a root other than /v3, still try v2 as a backup explicitly
+    urls.append("https://moonup.csu.moe/v2/")
+
+    for url in urls:
+        try:
+            console.print(f"[dim]Fetching nightly channel index: {url}[/dim]")
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            # Expect channels key with nightly
+            if isinstance(data, dict) and "channels" in data:
+                return data
+        except Exception:
+            continue
+    return None
+
+
+def get_latest_for_channel(channel: str = "latest") -> Optional[Tuple[str, Optional[str]]]:
+    """Get the latest version tuple for a channel from the dist index.
+
+    Returns (version, date) where date may be None for non-nightly channels.
+    """
+    idx = fetch_moonup_dist_index()
+    if not idx or "channels" not in idx:
+        return None
+    channels = idx.get("channels", [])
+    # channels is a list of dicts with 'name', 'version', and optionally 'date'
+    for entry in channels:
+        if isinstance(entry, dict) and entry.get("name") == channel:
+            version = entry.get("version")
+            date = entry.get("date")
+            return (version, date) if version else None
+    return None
 
 
 def list_available_versions(limit: Optional[int] = None) -> List[AvailableVersion]:

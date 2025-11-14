@@ -6,7 +6,7 @@ from pathlib import Path
 from rich.console import Console
 
 from .installer import MoonBitInstaller
-from .version import VersionManager, fetch_available_versions
+from .version import VersionManager, fetch_available_versions, get_latest_for_channel
 from .utils import get_current_version
 from .config import show_config, set_mirror, reset_config
 from .mirror import MirrorManager
@@ -26,6 +26,16 @@ def update(
         "latest",
         help="Version to install (default: latest)"
     ),
+    channel: str = typer.Option(
+        None,
+        "--channel",
+        help="Channel to use: stable|nightly"
+    ),
+    nightly: bool = typer.Option(
+        False,
+        "--nightly",
+        help="Install the latest nightly toolchain"
+    ),
     no_backup: bool = typer.Option(
         False,
         "--no-backup",
@@ -38,7 +48,9 @@ def update(
     This is the default command when no subcommand is specified.
     """
     installer = MoonBitInstaller()
-    success = installer.install(version=version, skip_backup=no_backup)
+    # Nightly flag or channel overrides version argument
+    target_version = "nightly" if nightly or (channel == "nightly") else version
+    success = installer.install(version=target_version, skip_backup=no_backup)
 
     if success:
         console.print("\n[green]✓[/green] Run [cyan]moon version[/cyan] to verify the installation")
@@ -55,7 +67,17 @@ def list_versions(
         "--all",
         "-a",
         help="Show all available versions (not just recent 20)"
-    )
+    ),
+    channel: str = typer.Option(
+        None,
+        "--channel",
+        help="Channel to list: stable|nightly"
+    ),
+    nightly: bool = typer.Option(
+        False,
+        "--nightly",
+        help="List nightly channel pointer"
+    ),
 ):
     """
     List available MoonBit versions.
@@ -63,6 +85,17 @@ def list_versions(
     Shows available versions that can be installed from moonbit-binaries,
     as well as previously installed versions tracked locally.
     """
+    if nightly or (channel == "nightly"):
+        latest = get_latest_for_channel("nightly")
+        if not latest:
+            console.print("[red]Could not fetch nightly channel information[/red]")
+            raise typer.Exit(1)
+        version, date = latest
+        console.print("[bold cyan]Nightly Channel[/bold cyan]\n")
+        console.print(f"Latest nightly: [green]{version}[/green] ({date or 'unknown date'})")
+        console.print("\n[cyan]Install:[/cyan] moonbit-up update --nightly")
+        return
+
     fetch_available_versions(show_all=all)
 
 

@@ -6,10 +6,7 @@ from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
 from rich.console import Console
 
-try:
-    import tomllib  # Python 3.11+
-except ImportError:
-    import tomli as tomllib  # Fallback for older Python
+import tomllib
 
 console = Console()
 
@@ -18,6 +15,9 @@ DEFAULT_CONFIG = {
     "mirror": {
         "index_url": "https://raw.githubusercontent.com/chawyehsu/moonbit-binaries/gh-pages/index.json",
         "download_base_url": "https://github.com/chawyehsu/moonbit-binaries/releases/download",
+    },
+    "nightly": {
+        "dist_server": "https://moonup.csu.moe/v3",
     },
     "installation": {
         "backup_enabled": True,
@@ -34,6 +34,12 @@ class MirrorConfig:
 
 
 @dataclass
+class NightlyConfig:
+    """Nightly channel configuration."""
+    dist_server: str
+
+
+@dataclass
 class InstallationConfig:
     """Installation configuration."""
     backup_enabled: bool
@@ -44,12 +50,14 @@ class InstallationConfig:
 class Config:
     """Main configuration object."""
     mirror: MirrorConfig
+    nightly: NightlyConfig
     installation: InstallationConfig
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
             "mirror": asdict(self.mirror),
+            "nightly": asdict(self.nightly),
             "installation": asdict(self.installation),
         }
 
@@ -72,10 +80,12 @@ def load_config() -> Config:
 
             # Merge with defaults (in case of missing keys)
             mirror_data = {**DEFAULT_CONFIG["mirror"], **data.get("mirror", {})}
+            nightly_data = {**DEFAULT_CONFIG["nightly"], **data.get("nightly", {})}
             installation_data = {**DEFAULT_CONFIG["installation"], **data.get("installation", {})}
 
             return Config(
                 mirror=MirrorConfig(**mirror_data),
+                nightly=NightlyConfig(**nightly_data),
                 installation=InstallationConfig(**installation_data),
             )
         except Exception as e:
@@ -85,6 +95,7 @@ def load_config() -> Config:
     # Return default config
     return Config(
         mirror=MirrorConfig(**DEFAULT_CONFIG["mirror"]),
+        nightly=NightlyConfig(**DEFAULT_CONFIG["nightly"]),
         installation=InstallationConfig(**DEFAULT_CONFIG["installation"]),
     )
 
@@ -116,6 +127,9 @@ def _config_to_toml(config: Config) -> str:
         f'index_url = "{config.mirror.index_url}"',
         f'download_base_url = "{config.mirror.download_base_url}"',
         "",
+        "[nightly]",
+        f'dist_server = "{config.nightly.dist_server}"',
+        "",
         "[installation]",
         f'backup_enabled = {str(config.installation.backup_enabled).lower()}',
         f'verify_checksums = {str(config.installation.verify_checksums).lower()}',
@@ -143,6 +157,7 @@ def reset_config() -> bool:
     """Reset configuration to defaults."""
     config = Config(
         mirror=MirrorConfig(**DEFAULT_CONFIG["mirror"]),
+        nightly=NightlyConfig(**DEFAULT_CONFIG["nightly"]),
         installation=InstallationConfig(**DEFAULT_CONFIG["installation"]),
     )
     return save_config(config)
@@ -158,6 +173,9 @@ def show_config() -> None:
     console.print("[bold]Mirror Settings:[/bold]")
     console.print(f"  Index URL:        {config.mirror.index_url}")
     console.print(f"  Download Base:    {config.mirror.download_base_url}")
+
+    console.print("\n[bold]Nightly Settings:[/bold]")
+    console.print(f"  Dist Server:      {config.nightly.dist_server}")
 
     console.print("\n[bold]Installation Settings:[/bold]")
     console.print(f"  Backup Enabled:   {config.installation.backup_enabled}")

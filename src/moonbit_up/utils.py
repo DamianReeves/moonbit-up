@@ -6,6 +6,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
+import platform
+import requests
 
 console = Console()
 
@@ -105,6 +107,79 @@ def get_current_version() -> Optional[str]:
     except Exception:
         pass
 
+    return None
+
+def detect_target_triple() -> str:
+    """Detect the current OS/arch target triple used by nightly assets.
+
+    Returns a Rust-like target triple string, e.g., 'x86_64-unknown-linux'.
+    
+    Note: For ARM64 Linux, returns x86_64 target since this tool is designed
+    to run x86_64 binaries on ARM64 via QEMU emulation.
+    """
+    system = platform.system().lower()
+    machine = platform.machine().lower()
+
+    if system == "linux":
+        # Always use x86_64 for Linux (ARM64 will use QEMU)
+        return "x86_64-unknown-linux"
+    elif system == "darwin":
+        if machine in ("arm64", "aarch64"):
+            return "aarch64-apple-darwin"
+        if machine in ("x86_64", "amd64"):
+            return "x86_64-apple-darwin"
+    elif system == "windows":
+        if machine in ("x86_64", "amd64"):
+            return "x86_64-pc-windows"
+    # Fallback
+    return f"{machine}-{system}"
+
+def candidate_asset_names_for_triple(triple: str, date: Optional[str] = None) -> list[str]:
+    """Generate candidate asset filenames for a given target triple.
+
+    This accounts for common naming variations used across releases.
+    Args:
+        triple: Target triple like 'x86_64-unknown-linux'
+        date: Optional date string for nightly builds (e.g., '2025-11-13')
+    """
+    ext = ".zip" if triple.endswith("pc-windows") else ".tar.gz"
+    arch, _, os_part = triple.partition("-")
+    # variations seen in community assets
+    candidates = []
+    
+    if date:
+        # Nightly pattern: moonbit-nightly-YYYY-MM-DD-triple.ext
+        candidates.extend([
+            f"moonbit-nightly-{date}-{triple}{ext}",
+            f"moonbit-nightly-{date}-{os_part}-{arch}{ext}",
+            f"moonbit-nightly-{date}-{arch}-{os_part}{ext}",
+        ])
+    
+    # Standard patterns (for stable or fallback)
+    candidates.extend([
+        f"moonbit-{triple}{ext}",
+        f"moonbit-{os_part}-{arch}{ext}",
+        f"moonbit-{arch}-{os_part}{ext}",
+    ])
+    if os_part.startswith("unknown-linux"):
+        if date:
+            candidates.append(f"moonbit-nightly-{date}-linux-{arch}{ext}")
+        candidates.append(f"moonbit-linux-{arch}{ext}")
+    return candidates
+
+def probe_first_existing_asset(base_url: str, tag: str, candidates: list[str]) -> Optional[str]:
+    """Return the first asset name that exists (HTTP 200) under the given tag.
+
+    Returns the resolved full URL if found, else None.
+    """
+    for name in candidates:
+        url = f"{base_url}/{tag}/{name}"
+        try:
+            resp = requests.head(url, timeout=10, allow_redirects=True)
+            if resp.status_code == 200:
+                return url
+        except Exception:
+            continue
     return None
 
 def create_wrapper_script(binary_name: str, moon_home: Path) -> bool:

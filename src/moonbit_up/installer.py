@@ -18,13 +18,17 @@ from .utils import (
     backup_moon_home,
     setup_wrappers,
     get_current_version,
+    detect_target_triple,
+    candidate_asset_names_for_triple,
+    probe_first_existing_asset,
 )
-from .version import VersionManager, list_available_versions
+from .version import VersionManager, list_available_versions, get_latest_for_channel
 from .config import load_config
 
 console = Console()
 
 MOONBIT_BASE_URL = "https://cli.moonbitlang.com/binaries"
+NIGHTLY_RELEASE_BASE = "https://github.com/chawyehsu/moonbit-dist-nightly/releases/download"
 
 
 class MoonBitInstaller:
@@ -46,6 +50,28 @@ class MoonBitInstaller:
         """
         config = load_config()
         download_base_url = config.mirror.download_base_url
+
+        if version == "nightly":
+            # Resolve latest nightly via dist index
+            latest = get_latest_for_channel("nightly")
+            if not latest or not latest[0]:
+                console.print("[red]Unable to resolve latest nightly from dist index[/red]")
+                raise RuntimeError("nightly resolution failed")
+            resolved_ver, date = latest[0], latest[1]
+            if not date:
+                console.print("[yellow]Nightly date not present, attempting fallback naming[/yellow]")
+                # Without date, we cannot form a tag reliably
+                raise RuntimeError("nightly date missing from dist index")
+
+            tag = f"nightly-{date}"
+            triple = detect_target_triple()
+            candidates = candidate_asset_names_for_triple(triple, date=date)
+            resolved_url = probe_first_existing_asset(NIGHTLY_RELEASE_BASE, tag, candidates)
+            if not resolved_url:
+                console.print("[red]Could not locate nightly asset for current platform[/red]")
+                console.print("[dim]Tried candidates:\n  - " + "\n  - ".join(candidates) + f"\nTag: {tag}")
+                raise RuntimeError("nightly asset not found")
+            return resolved_url, resolved_ver
 
         if version == "latest":
             # Get the latest version from moonbit-binaries
@@ -220,7 +246,11 @@ class MoonBitInstaller:
 
         # Resolve version
         console.print(f"Resolving version: {version}")
-        _, resolved_version = self.resolve_version(version)
+        try:
+            _, resolved_version = self.resolve_version(version)
+        except Exception as e:
+            console.print(f"[red]Failed to resolve version: {e}[/red]")
+            return False
         console.print(f"Target version: {resolved_version}\n")
 
         # Check current version
